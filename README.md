@@ -7,11 +7,9 @@ February 04, 2020
 * Additional Content by: Gravitasi, aftokino, KCreator, Padishar, Kragrathea, OvenProofMars, zengei, MrHappyFace, Sigma88, Majiir (CompatibilityChecker)
 * Much thanks to Sarbian for ModuleManager and ModularFlightIntegrator
 
-New in this version (1.10.0-1)
+New in this version (R-T-B's Unified Bleeding Edge)
 -------------------
-- Updated to KSP 1.10.0
-- Readded particles support
-- Support for Jool shaders on Jool and only Jool.
+This is R-T-B's "Bleeding Edge" branch of Kopernicus, intended to support the latest features, KSP editions, and also the latest bugs. Please keep in mind this branch may be more buggy than Prestja's mainline Kopernicus branch, but it also supports more KSP versions and has more features implemented for testing reasons. Many features that make it into mainline Kopernicus are born, tested, and trialed by fire here.
 
 This is the bleeding edge Kopernicus branch.  For the stable branch, please see:
 
