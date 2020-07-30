@@ -358,12 +358,12 @@ namespace Kopernicus.Configuration
 
                         // If no mod is left, delete the game object too
                         GameObject gameObject = allMods[index].gameObject;
-                        Object.DestroyImmediate(allMods[index]);
                         PQSMod[] allRemainingMods = gameObject.GetComponentsInChildren<PQSMod>(true);
                         if (allRemainingMods.Length == 0)
                         {
-                            Object.DestroyImmediate(gameObject);
+                            gameObject.DestroyGameObjectImmediate();
                         }
+                        Object.DestroyImmediate(allMods[index]);
                     }
                 }
 
