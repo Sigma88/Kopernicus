@@ -350,7 +350,7 @@ namespace Kopernicus.Configuration
                                     }
                                     foreach (GameObject o in range.objects)
                                     {
-                                        Object.DestroyImmediate(o);
+                                        o.DestroyGameObjectImmediate();
                                     }
                                 }
                             }
