@@ -44,13 +44,13 @@ namespace Kopernicus.RuntimeUtility
 
         private void Update()
         {
-            if (GameSettings.TERRAIN_SHADER_QUALITY == 3)
+            if ((GameSettings.TERRAIN_SHADER_QUALITY == 3) || (HighLogic.LoadedScene != GameScenes.MAINMENU))
             {
                 return;
             }
 
             ScreenMessages.PostScreenMessage(
-                "Kopernicus team only supports terrain quality ultra.\nSome terrain packs may show bugs.",
+                "Kopernicus only supports terrain quality ultra!\nSome terrain packs may not work!.",
                 5f, ScreenMessageStyle.UPPER_LEFT);
 
             //GameSettings.TERRAIN_SHADER_QUALITY = 3;
