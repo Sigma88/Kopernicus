@@ -144,6 +144,7 @@
     <Compile Include="Configuration\Asteroids\Asteroid.cs" />
     <Compile Include="Configuration\Asteroids\Location.cs" />
     <Compile Include="Configuration\AtmosphereFromGroundLoader.cs" />
+    <Compile Include="Configuration\ConfigReader.cs" />
     <Compile Include="Configuration\DebugLoader.cs" />
     <Compile Include="Configuration\Enumerations\KopernicusNoiseQuality.cs" />
     <Compile Include="Configuration\Enumerations\KopernicusNoiseType.cs" />
