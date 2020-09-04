@@ -287,22 +287,15 @@ namespace Kopernicus.Configuration
                 {
                     GeneratedBody.celestialBody.bodyDisplayName = GeneratedBody.celestialBody.bodyAdjectiveDisplayName = GeneratedBody.celestialBody.bodyName;
                 }
-                if (Template.OriginalBody.scaledVersion.name.Equals("Jool"))
+                if ((Template.OriginalBody.scaledVersion.name.Equals("Jool")) && (Versioning.version_minor > 9))
                 {
                     if ((!Name.Equals("Jool")) || (Name.Equals("Jool") && (Template.Body.celestialBody.Radius > 6000000))) // This is a Jool-clone, or resized Jool.  We have to handle it special.
                     {
-                        /*try
-                        {
-                            //Remove Gas Giant shaders for compatability
-                            GasGiantMaterialControls GGMC = GeneratedBody.scaledVersion.GetComponent<GasGiantMaterialControls>();
-                            MaterialBasedOnGraphicsSetting MBOGS = GeneratedBody.scaledVersion.GetComponent<MaterialBasedOnGraphicsSetting>();
-                            GameObject.DestroyImmediate(GGMC);
-                            GameObject.DestroyImmediate(MBOGS);
-                        }
-                        catch
-                        {
-                            //we don't care that it did not work, probably 1.9.1
-                        }*/
+                        //Remove Gas Giant shaders for compatability
+                        GasGiantMaterialControls GGMC = GeneratedBody.scaledVersion.GetComponent<GasGiantMaterialControls>();
+                        MaterialBasedOnGraphicsSetting MBOGS = GeneratedBody.scaledVersion.GetComponent<MaterialBasedOnGraphicsSetting>();
+                        GameObject.DestroyImmediate(GGMC);
+                        GameObject.DestroyImmediate(MBOGS);
                     }
                 }
                 // Create accessors
@@ -352,7 +345,7 @@ namespace Kopernicus.Configuration
             }
             // Event
             Events.OnBodyApply.Fire(this, node);
-        }
+        } // ^^^ Everything up there needs cleanup, highly redundant code.
 
         // Parser Post Apply Event
         void IParserEventSubscriber.PostApply(ConfigNode node)
