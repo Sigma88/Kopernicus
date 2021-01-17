@@ -12,13 +12,18 @@ namespace Kopernicus.Components.ModularScatter
     {
         private MeshRenderer surfaceObject;
         private float maxdistance = 10000;
+        private Boolean configValueLoaded = false;
         private void Start()
         {
             surfaceObject = GetComponent<MeshRenderer>();
-            maxdistance = Kopernicus.RuntimeUtility.RuntimeUtility.KopernicusConfig.ScatterCullDistance;
         }
         private void Update()
         {
+            if (configValueLoaded == false)
+            {
+                maxdistance = Kopernicus.RuntimeUtility.RuntimeUtility.KopernicusConfig.ScatterCullDistance;
+                configValueLoaded = true;
+            }
             float distance = 0;
             if (FlightGlobals.ActiveVessel != null)
             {
