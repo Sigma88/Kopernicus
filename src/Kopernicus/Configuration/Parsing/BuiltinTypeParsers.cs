@@ -595,36 +595,36 @@ namespace Kopernicus.Configuration.Parsing
         [ParserTarget("bounceCombine")]
         public EnumParser<PhysicMaterialCombine> BounceCombine
         {
-            get { return PhysicMaterialCombine.Average; }
-            set { Value.bounceCombine = PhysicMaterialCombine.Average; }
+            get { return Value.bounceCombine; }
+            set { Value.bounceCombine = value; }
         }
 
         [ParserTarget("frictionCombine")]
         public EnumParser<PhysicMaterialCombine> FrictionCombine
         {
-            get { return PhysicMaterialCombine.Maximum; }
-            set { Value.frictionCombine = PhysicMaterialCombine.Maximum; }
+            get { return Value.frictionCombine; }
+            set { Value.frictionCombine = value; }
         }
 
         [ParserTarget("bounciness")]
         public NumericParser<Single> Bounciness
         {
-            get { return 0.9f; }
-            set { Value.bounciness = 0.9f; }
+            get { return Value.bounciness; }
+            set { Value.bounciness = value; }
         }
 
         [ParserTarget("staticFriction")]
         public NumericParser<Single> StaticFriction
         {
-            get { return 0.9f; }
-            set { Value.staticFriction = 0.9f; }
+            get { return Value.staticFriction; }
+            set { Value.staticFriction = value; }
         }
 
         [ParserTarget("dynamicFriction")]
         public NumericParser<Single> DynamicFriction
         {
-            get { return 0.9f; }
-            set { Value.dynamicFriction = 0.9f; }
+            get { return Value.dynamicFriction; }
+            set { Value.dynamicFriction = value; }
         }
 
         /// <summary>
@@ -635,8 +635,8 @@ namespace Kopernicus.Configuration.Parsing
             Value = new PhysicMaterial
             {
                 name = "Ground",
-                dynamicFriction = 0.9f,
-                staticFriction = 0.9f,
+                dynamicFriction = 0.6f,
+                staticFriction = 0.8f,
                 bounciness = 0.0f,
                 frictionCombine = PhysicMaterialCombine.Maximum,
                 bounceCombine = PhysicMaterialCombine.Average
