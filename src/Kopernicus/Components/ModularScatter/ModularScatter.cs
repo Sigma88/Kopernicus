@@ -51,6 +51,9 @@ namespace Kopernicus.Components.ModularScatter
             set { components = value; }
         }
 
+        //Rate limiting counter for update loop cleaning code
+        private int updateCounter = 0;
+
         /// <summary>
         /// The celestial body we are attached to
         /// </summary>
@@ -74,7 +77,7 @@ namespace Kopernicus.Components.ModularScatter
         /// <summary>
         /// Whether to treat the density calculation as an actual floating point value
         /// </summary>
-        public Boolean useBetterDensity ;
+        public Boolean useBetterDensity;
 
         /// <summary>
         /// Makes the density calculation ignore the game setting for scatter density
@@ -84,12 +87,12 @@ namespace Kopernicus.Components.ModularScatter
         /// <summary>
         /// How much variation should the scatter density have?
         /// </summary>
-        public List<Single> densityVariance = new List<Single> {-0.5f, 0.5f};
+        public List<Single> densityVariance = new List<Single> { -0.5f, 0.5f };
 
         /// <summary>
         /// How much should the scatter be able to rotate
         /// </summary>
-        public List<Single> rotation = new List<Single> {0, 360f};
+        public List<Single> rotation = new List<Single> { 0, 360f };
 
         /// <summary>
         /// How large is the chance that a scatter object spawns on a quad?
@@ -182,7 +185,7 @@ namespace Kopernicus.Components.ModularScatter
                     0, 1, 6
                 };
 
-                _cubeMesh = new Mesh {vertices = vertices, triangles = triangles, name = "Kopernicus-CubeDummy"};
+                _cubeMesh = new Mesh { vertices = vertices, triangles = triangles, name = "Kopernicus-CubeDummy" };
             }
 
             scatter.baseMesh = _cubeMesh;
@@ -209,54 +212,63 @@ namespace Kopernicus.Components.ModularScatter
 
         private void Update()
         {
-            // Reprocess the stock scatter models, since they are merged into
-            // one gigantic mesh per quad, but we want unique objects
-            PQSMod_LandClassScatterQuad[] quads = gameObject.GetComponentsInChildren<PQSMod_LandClassScatterQuad>(true);
-            for (Int32 i = 0; i < quads.Length; i++)
+            updateCounter++;
+            //Rate limit garbage collection/updates to once every 1 seconds on a good day...
+            if (updateCounter > 60)
             {
-                if (quads[i].mr && quads[i].mr.enabled)
+                updateCounter = 0;
+                // Reprocess the stock scatter models, since they are merged into
+                // one gigantic mesh per quad, but we want unique objects
+                PQSMod_LandClassScatterQuad[] quads = gameObject.GetComponentsInChildren<PQSMod_LandClassScatterQuad>(true);
+                for (Int32 i = 0; i < quads.Length; i++)
                 {
-                    quads[i].mr.enabled = false;
-                }
-
-                if (quads[i].obj.name.StartsWith("Kopernicus"))
-                {
-                    continue;
-                }
-
-                if (!quads[i].obj.activeSelf)
-                {
-                    continue;
-                }
-
-                if (quads[i].obj.name == "Unass")
-                {
-                    var surfaceObjects = quads[i].obj.GetComponentsInChildren<KopernicusSurfaceObject>(true);
-
-                    for (int j = 0; j < surfaceObjects.Length; j++)
+                    if (quads[i].mr && quads[i].mr.enabled)
                     {
-                        Destroy(surfaceObjects[j].gameObject);
+                        quads[i].mr.enabled = false;
                     }
 
-                    continue;
+                    if (quads[i].obj.name.StartsWith("Kopernicus"))
+                    {
+                        continue;
+                    }
+
+                    if (!quads[i].obj.activeSelf)
+                    {
+                        continue;
+                    }
+
+                    if (quads[i].obj.name == "Unass")
+                    {
+                        continue;
+                    }
+
+                    CreateScatterMeshes(quads[i]);
+                    quads[i].mesh.Clear();
                 }
 
-                CreateScatterMeshes(quads[i]);
-                quads[i].mesh.Clear();
-            }
+                for (Int32 i = 0; i < scatterObjects.Count; i++)
+                {
+                    if (scatterObjects[i])
+                    {
+                        if (scatterObjects[i].transform.parent.name == "Unass")
+                        {
+                            Destroy(scatterObjects[i]);
+                        }
+                        else
+                        {
+                            continue;
+                        }
 
-            for (Int32 i = 0; i < scatterObjects.Count; i++)
-            {
-                if (scatterObjects[i]) continue;
+                    }
+                    scatterObjects.RemoveAt(i);
+                    i--;
+                }
 
-                scatterObjects.RemoveAt(i);
-                i--;
-            }
-
-            // Update components
-            for (int i = 0; i < Components.Count; i++)
-            {
-                Components[i].Update(this);
+                // Update components
+                for (int i = 0; i < Components.Count; i++)
+                {
+                    Components[i].Update(this);
+                }
             }
         }
 
@@ -283,7 +295,7 @@ namespace Kopernicus.Components.ModularScatter
                                        (quad.quad.quadArea / quad.quad.sphereRoot.radius / 1000.0) *
                                        quad.scatter.maxScatter;
                     scatterN += Random.Range(-0.5f, 0.5f);
-                    quad.count = Math.Min((Int32) Math.Round(scatterN), quad.scatter.maxScatter);
+                    quad.count = Math.Min((Int32)Math.Round(scatterN), quad.scatter.maxScatter);
                 }
             }
 
@@ -338,6 +350,7 @@ namespace Kopernicus.Components.ModularScatter
             }
 
             quad.obj.name = "Kopernicus-" + quad.scatter.scatterName;
+            quad.obj.AddOrGetComponent<ScatterDistanceCuller>();
         }
     }
 }

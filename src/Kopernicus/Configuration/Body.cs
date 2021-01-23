@@ -215,6 +215,10 @@ namespace Kopernicus.Configuration
         [ParserTargetCollection("Rings", AllowMerge = true)]
         public List<RingLoader> Rings { get; set; }
 
+        // Wrapper around Particle class for editing/loading
+        [ParserTargetCollection("Particles", AllowMerge = true)]
+        public List<ParticleLoader> Particles { get; set; }
+
         [ParserTargetCollection("HazardousBody", AllowMerge = true)]
         public List<HazardousBodyLoader> HazardousBody { get; set; }
 
@@ -258,11 +262,10 @@ namespace Kopernicus.Configuration
         // Parser Apply Event
         void IParserEventSubscriber.Apply(ConfigNode node)
         {
-            // If we have a template, generatedBody *is* the template body
             if (Template != null && Template.Body)
             {
+                // If we have a template, generatedBody *is* the template body
                 GeneratedBody = Template.Body;
-
                 // Patch the game object names in the template
                 GeneratedBody.name = Name;
                 GeneratedBody.celestialBody.bodyName = Name;
@@ -279,14 +282,28 @@ namespace Kopernicus.Configuration
                     }
                     GeneratedBody.celestialBody.pqsController = GeneratedBody.pqsVersion;
                 }
-
                 // If we've changed the name, reset use_The_InName
                 if (GeneratedBody.name != Template.OriginalBody.celestialBody.bodyName)
                 {
                     GeneratedBody.celestialBody.bodyDisplayName = GeneratedBody.celestialBody.bodyAdjectiveDisplayName = GeneratedBody.celestialBody.bodyName;
                 }
+#if (KSP_VERSION_1_10_1 || KSP_VERSION_1_11)
+                if (Template.OriginalBody.scaledVersion.name.Equals("Jool"))
+                {
+                    if ((!Name.Equals("Jool")) || (Name.Equals("Jool") && (Template.Body.celestialBody.Radius > 6000000))) // This is a Jool-clone, or resized Jool.  We have to handle it special.
+                    {
+                        //Remove Gas Giant shaders for compatability
+                        GasGiantMaterialControls GGMC = GeneratedBody.scaledVersion.GetComponent<GasGiantMaterialControls>();
+                        MaterialBasedOnGraphicsSetting MBOGS = GeneratedBody.scaledVersion.GetComponent<MaterialBasedOnGraphicsSetting>();
+                        GameObject.DestroyImmediate(GGMC);
+                        GameObject.DestroyImmediate(MBOGS);
+                    }
+                }
+#endif
+                // Create accessors
+                Debug = new DebugLoader();
+                ScaledVersion = new ScaledVersionLoader();
             }
-
             // Otherwise we have to generate all the things for this body
             else
             {
@@ -311,12 +328,23 @@ namespace Kopernicus.Configuration
                 // Create the scaled version
                 GeneratedBody.scaledVersion = new GameObject(Name) {layer = GameLayers.SCALED_SPACE};
                 GeneratedBody.scaledVersion.transform.parent = Utility.Deactivator;
+                // Create accessors
+                Debug = new DebugLoader();
+                ScaledVersion = new ScaledVersionLoader();
+                //Fix normals for gasgiants and newbodies (if needed, ignore the weird trycatch, it works)
+                ScaledSpaceOnDemand onDemand = GeneratedBody.celestialBody.scaledBody.AddOrGetComponent<ScaledSpaceOnDemand>();
+                try
+                {
+                    if (onDemand.normals.Length < 1)
+                    {
+                        onDemand.normals = "Kopernicus/Textures/generic_nm.dds";
+                    }
+                }
+                catch
+                {
+                    onDemand.normals = "Kopernicus/Textures/generic_nm.dds";
+                }
             }
-
-            // Create accessors
-            Debug = new DebugLoader();
-            ScaledVersion = new ScaledVersionLoader();
-
             // Event
             Events.OnBodyApply.Fire(this, node);
         }
@@ -381,6 +409,7 @@ namespace Kopernicus.Configuration
         public Body()
         {
             Rings = new List<RingLoader>();
+            Particles = new List<ParticleLoader>();
         }
 
         /// <summary>
@@ -418,6 +447,13 @@ namespace Kopernicus.Configuration
             foreach (Ring ring in celestialBody.scaledBody.GetComponentsInChildren<Ring>(true))
             {
                 Rings.Add(new RingLoader(ring));
+            }
+
+            Particles = new List<ParticleLoader>();
+            foreach (PlanetParticleEmitter particle in celestialBody.scaledBody
+                .GetComponentsInChildren<PlanetParticleEmitter>(true))
+            {
+                Particles.Add(new ParticleLoader(particle));
             }
 
             HazardousBody = new List<HazardousBodyLoader>();

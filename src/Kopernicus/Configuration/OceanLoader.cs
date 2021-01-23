@@ -126,7 +126,38 @@ namespace Kopernicus.Configuration
         /// </summary>
         private Material BasicSurfaceMaterial
         {
-            get { return Value.ultraQualitySurfaceMaterial; }
+            get
+            {
+                switch (GameSettings.TERRAIN_SHADER_QUALITY)
+                {
+                    case 3:
+                        if (Value.ultraQualitySurfaceMaterial != null)
+                        {
+                            return Value.ultraQualitySurfaceMaterial;
+                        }
+                        goto case 2;
+                    case 2:
+                        if (Value.highQualitySurfaceMaterial != null)
+                        {
+                            return Value.highQualitySurfaceMaterial;
+                        }
+                        goto case 1;
+                    case 1:
+                        if (Value.mediumQualitySurfaceMaterial != null)
+                        {
+                            return Value.mediumQualitySurfaceMaterial;
+                        }
+                        goto case 0;
+                    case 0:
+                        if (Value.lowQualitySurfaceMaterial != null)
+                        {
+                            return Value.lowQualitySurfaceMaterial;
+                        }
+                        goto default;
+                    default:
+                        return Value.surfaceMaterial;
+                }
+            }
             set
             {
                 Value.ultraQualitySurfaceMaterial = value;
@@ -223,7 +254,7 @@ namespace Kopernicus.Configuration
                 // Create a new PQS
                 GameObject controllerRoot = new GameObject();
                 controllerRoot.transform.parent = generatedBody.pqsVersion.transform;
-                Value = controllerRoot.AddComponent<PQS>();
+                Value = controllerRoot.AddOrGetComponent<PQS>();
 
                 // I (Teknoman) am at this time unable to determine some of the magic parameters which cause the PQS to work...
                 // And I (Thomas) am at this time just too lazy to do it differently...

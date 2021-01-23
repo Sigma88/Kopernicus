@@ -98,7 +98,10 @@ namespace Kopernicus.Configuration
                 {
                     return ScaledMaterialType.Star;
                 }
-
+                if (material.shader.name.Equals("Terrain/Gas Giant")) // Kludge for Joolian shader loading for now
+                {
+                    return ScaledMaterialType.Atmospheric;
+                }
                 throw new Exception("The shader '" + material.shader.name + "' is not supported.");
             }
             set
@@ -354,8 +357,8 @@ namespace Kopernicus.Configuration
                 }
             }
 
-            // Otherwise we are a star
-            else
+            // Otherwise we are (likely) a star
+            else if (Type == ScaledMaterialType.Star)
             {
                 // Add the SunShaderController behavior
                 SunShaderController controller = Value.scaledBody.GetComponent<SunShaderController>();
@@ -385,7 +388,6 @@ namespace Kopernicus.Configuration
                     corona.transform.parent = Utility.Deactivator;
                 }
             }
-
             // Event
             Events.OnScaledVersionLoaderApply.Fire(this, node);
         }

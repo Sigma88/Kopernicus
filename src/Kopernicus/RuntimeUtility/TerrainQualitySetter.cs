@@ -44,17 +44,19 @@ namespace Kopernicus.RuntimeUtility
 
         private void Update()
         {
-            if (GameSettings.TERRAIN_SHADER_QUALITY == 3)
+            if (GameSettings.TERRAIN_SHADER_QUALITY == RuntimeUtility.KopernicusConfig.EnforcedShaderLevel)
             {
                 return;
             }
-
-            ScreenMessages.PostScreenMessage(
-                "Kopernicus only supports terrain quality ultra!\nThe settings will be updated automatically.",
-                5f, ScreenMessageStyle.UPPER_LEFT);
-
-            GameSettings.TERRAIN_SHADER_QUALITY = 3;
-            GameSettings.SaveSettings();
+            if ((RuntimeUtility.KopernicusConfig.WarnShaders) && (!HighLogic.LoadedSceneIsGame))
+            {
+                ScreenMessages.PostScreenMessage("Terrain quality set improperly!.", 5f, ScreenMessageStyle.UPPER_LEFT);
+            }
+            if (RuntimeUtility.KopernicusConfig.EnforceShaders)
+            {
+                GameSettings.TERRAIN_SHADER_QUALITY = RuntimeUtility.KopernicusConfig.EnforcedShaderLevel;
+                GameSettings.SaveSettings();
+            }
         }
     }
 }

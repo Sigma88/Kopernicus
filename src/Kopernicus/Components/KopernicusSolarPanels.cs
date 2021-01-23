@@ -26,60 +26,28 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Reflection;
+using ModularFI;
 using UnityEngine;
 using KSP.Localization;
 
 namespace Kopernicus.Components
 {
     /// <summary>
-    /// This <see cref="PartModule"/> should be added before any <see cref="ModuleDeployableSolarPanel"/>.
-    /// </summary>
-    public class KopernicusSolarPanelsFixer : PartModule
-    {
-        ModuleDeployableSolarPanel SP;
-
-        public override void OnStart(StartState state)
-        {
-            if (HighLogic.LoadedSceneIsFlight)
-            {
-                SP = GetComponent<ModuleDeployableSolarPanel>();
-            }
-        }
-
-        /// <summary>
-        /// Runs before <see cref="ModuleDeployableSolarPanel.FixedUpdate"/>.
-        /// </summary>
-        void FixedUpdate()
-        {
-            if (HighLogic.LoadedSceneIsFlight)
-            {
-                // Start from the target body
-                if (SP != null)
-                {
-                    KopernicusStar star = KopernicusStar.CelestialBodies[SP.trackingBody];
-                    star.shifter.ApplyPhysics();
-
-                    vessel.solarFlux = star.CalculateFluxAt(vessel) * PhysicsGlobals.SolarLuminosityAtHome / 1360;
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// This <see cref="PartModule"/> should be added after all <see cref="ModuleDeployableSolarPanel"/>.
+    /// An extension for the Solar Panel to calculate the flux properly
     /// </summary>
     public class KopernicusSolarPanels : PartModule
     {
         //Strings for Localization
-        private static string SP_status_DirectSunlight = Localizer.Format("#Kopernicus_UI_DirectSunlight");  // "Direct Sunlight"
-        private static string SP_status_Underwater = Localizer.Format("#Kopernicus_UI_Underwater");          // "Underwater"
-        private static string button_AbsoluteExposure = Localizer.Format("#Kopernicus_UI_AbsoluteExposure"); // "Use absolute exposure"
-        private static string button_RelativeExposure = Localizer.Format("#Kopernicus_UI_RelativeExposure"); // "Use relative exposure"
-        private static string button_Auto = Localizer.Format("#Kopernicus_UI_AutoTracking");                 // "Auto"
-        private static string SelectBody = Localizer.Format("#Kopernicus_UI_SelectBody");                    // "Select Tracking Body"
-        private static string SelectBody_Msg = Localizer.Format("#Kopernicus_UI_SelectBody_Msg");            // "Please select the Body you want to track with this Solar Panel."
+        private static string SP_status_DirectSunlight = Localizer.Format("#Kopernicus_UI_DirectSunlight");//"Direct Sunlight"
+        private static string SP_status_Underwater = Localizer.Format("#Kopernicus_UI_Underwater");//"Underwater"
+        private static string button_AbsoluteExposure = Localizer.Format("#Kopernicus_UI_AbsoluteExposure");//"Use absolute exposure"
+        private static string button_RelativeExposure = Localizer.Format("#Kopernicus_UI_RelativeExposure");//"Use relative exposure"
+        private static string button_Auto = Localizer.Format("#Kopernicus_UI_AutoTracking");//"Auto"
+        private static string SelectBody = Localizer.Format("#Kopernicus_UI_SelectBody");//"Select Tracking Body"
+        private static string SelectBody_Msg = Localizer.Format("#Kopernicus_UI_SelectBody_Msg");// "Please select the Body you want to track with this Solar Panel."
 
-        [KSPField(guiActive = true, guiActiveEditor = false, guiName = "#Kopernicus_UI_TrackingBody", isPersistant = true)]
+        [KSPField(guiActive = true, guiActiveEditor = false, guiName = "#Kopernicus_UI_TrackingBody", isPersistant = true)]//Tracking Body
         [SuppressMessage("ReSharper", "NotAccessedField.Global")]
         public String trackingBodyName;
 
@@ -89,110 +57,189 @@ namespace Kopernicus.Components
         [KSPField(isPersistant = true)]
         private Boolean _relativeSunAoa;
 
-        /// <summary>
-        /// The list of all <see cref="ModuleDeployableSolarPanel"/><i>s</i> on this <see cref="Part"/>.
-        /// </summary>
         private ModuleDeployableSolarPanel[] SPs;
 
-        /// <summary>
-        /// Runs before <see cref="ModuleDeployableSolarPanel.FixedUpdate"/>.
-        /// </summary>
-        void FixedUpdate()
+        private static readonly Double StockLuminosity;
+
+        static KopernicusSolarPanels()
         {
-            if (HighLogic.LoadedSceneIsFlight)
-            {
-                for (Int32 n = 0; n < SPs.Length; n++)
-                {
-                    ModuleDeployableSolarPanel SP = SPs[n];
-
-                    if (SP.deployState == ModuleDeployablePart.DeployState.EXTENDED)
-                    {
-                        KopernicusStar trackingStar = KopernicusStar.CelestialBodies[SP.trackingBody];
-
-                        Double bestFlux = vessel.solarFlux * 1360 / PhysicsGlobals.SolarLuminosityAtHome;
-                        KopernicusStar bestStar = trackingStar;
-                        Double totalFlux = 0;
-                        Single totalAoA = SP.sunAOA;
-                        Double _totalFlow = SP._flowRate;
-                        Single totalFlow = SP.flowRate;
-
-                        for (Int32 s = 0; s < KopernicusStar.Stars.Count; s++)
-                        {
-                            KopernicusStar star = KopernicusStar.Stars[s];
-
-                            if (star != trackingStar)
-                            {
-                                // Use this star
-                                star.shifter.ApplyPhysics();
-                                double flux = star.CalculateFluxAt(vessel);
-                                vessel.solarFlux += flux * PhysicsGlobals.SolarLuminosityAtHome / 1360;
-
-                                // Change the tracking body
-                                SP.trackingBody = star.sun;
-                                SP.GetTrackingBodyTransforms();
-
-                                // Set Tracking Speed to zero
-                                Single trackingSpeed = SP.trackingSpeed;
-                                SP.trackingSpeed = 0;
-
-                                // Run The MDSP CalculateTracking
-                                SP.CalculateTracking();
-
-                                // Add to TotalFlux and TotalAoA
-                                totalFlux += vessel.solarFlux;
-                                totalAoA += SP.sunAOA;
-                                _totalFlow += SP._flowRate;
-                                totalFlow += SP.flowRate;
-
-                                if (bestFlux < flux)
-                                {
-                                    bestFlux = flux;
-                                    bestStar = star;
-                                }
-
-                                // Restore Tracking Speed
-                                SP.trackingSpeed = trackingSpeed;
-                            }
-                        }
-
-                        // Restore the tracking body
-                        SP.trackingBody = trackingStar.sun;
-                        SP.GetTrackingBodyTransforms();
-
-                        // Restore the starting star
-                        trackingStar.shifter.ApplyPhysics();
-
-                        totalFlux += trackingStar.CalculateFluxAt(vessel) * PhysicsGlobals.SolarLuminosityAtHome / 1360;
-
-                        vessel.solarFlux = totalFlux;
-                        SP.sunAOA = totalAoA;
-                        SP.sunAOA /= _relativeSunAoa ? KopernicusStar.Stars.Count : 1;
-                        SP._flowRate = _totalFlow;
-                        SP.flowRate = totalFlow;
-
-                        // We got the best star to use
-                        if (bestStar != null && bestStar.sun != SP.trackingBody)
-                        {
-                            if (!_manualTracking)
-                            {
-                                SP.trackingBody = bestStar.sun;
-                                SP.GetTrackingBodyTransforms();
-                                continue;
-                            }
-                        }
-                    }
-                }
-
-                // Restore The Current Star
-                KopernicusStar.Current.shifter.ApplyPhysics();
-            }
+            StockLuminosity = LightShifter.Prefab.solarLuminosity;
         }
 
-        void EarlyLateUpdate()
+        public void LatePostCalculateTracking()
         {
             for (Int32 n = 0; n < SPs.Length; n++)
             {
                 ModuleDeployableSolarPanel SP = SPs[n];
+
+                if (SP?.deployState == ModuleDeployablePart.DeployState.EXTENDED)
+                {
+                    Vector3 normalized = (SP.trackingTransformLocal.position - SP.panelRotationTransform.position).normalized;
+                    FieldInfo trackingLOS = typeof(ModuleDeployableSolarPanel).GetFields(BindingFlags.Instance | BindingFlags.NonPublic).FirstOrDefault(f => f.Name == "trackingLOS");
+                    LatePostCalculateTracking((bool)trackingLOS.GetValue(SP), normalized,n);
+                }
+            }
+        }
+
+        public void LatePostCalculateTracking(Boolean trackingLos, Vector3 trackingDirection, int panelId)
+        {
+            ModuleDeployableSolarPanel SP = SPs[panelId];
+
+            // Maximum values
+            Double maxEnergy = 0;
+            KopernicusStar maxStar = null;
+
+            // Override layer mask
+            typeof(ModuleDeployableSolarPanel).GetFields(BindingFlags.Instance | BindingFlags.NonPublic).FirstOrDefault(f => f.Name == "planetLayerMask").SetValue(SP, ModularFlightIntegrator.SunLayerMask);
+
+            // Efficiency modifier
+            SP._efficMult = SP.temperatureEfficCurve.Evaluate((Single)part.skinTemperature) *
+                         SP.timeEfficCurve.Evaluate(
+                             (Single)((Planetarium.GetUniversalTime() - SP.launchUT) * 1.15740740740741E-05)) *
+                        SP.efficiencyMult;
+            SP._flowRate = 0;
+            SP.sunAOA = 0;
+
+            // Go through all stars
+            Int32 stars = KopernicusStar.Stars.Count;
+            for (Int32 i = 0; i < stars; i++)
+            {
+                KopernicusStar star = KopernicusStar.Stars[i];
+
+                // Calculate stuff
+                Transform sunTransform = star.sun.transform;
+                Vector3 trackDir = (sunTransform.position - SP.panelRotationTransform.position).normalized;
+                CelestialBody old = SP.trackingBody;
+                SP.trackingTransformLocal = sunTransform;
+                SP.trackingTransformScaled = star.sun.scaledBody.transform;
+
+
+
+                SP.trackingTransformLocal = old.transform;
+                SP.trackingTransformScaled = old.scaledBody.transform;
+
+                // Calculate sun AOA
+                Single sunAoa;
+                if (!trackingLos)
+                {
+                    FieldInfo blockingObject = typeof(ModuleDeployableSolarPanel).GetFields(BindingFlags.Instance | BindingFlags.NonPublic).FirstOrDefault(f => f.Name == "blockingObject");
+                    string blockingObjectName = (string)blockingObject.GetValue(SP);
+                    SP.status = Localizer.Format("#Kopernicus_UI_PanelBlocked", blockingObjectName);//"Blocked by " + blockingObjectName
+                }
+                else
+                {
+                    SP.status = SP_status_DirectSunlight;//"Direct Sunlight"
+                }
+                if (SP.panelType == ModuleDeployableSolarPanel.PanelType.FLAT)
+                {
+                    sunAoa = Mathf.Clamp(Vector3.Dot(SP.trackingDotTransform.forward, trackDir), 0f, 1f);
+                }
+                else if (SP.panelType != ModuleDeployableSolarPanel.PanelType.CYLINDRICAL)
+                {
+                    sunAoa = 0.25f;
+                }
+                else
+                {
+                    Vector3 direction;
+                    if (SP.alignType == ModuleDeployableSolarPanel.PanelAlignType.PIVOT)
+                    {
+                        direction = SP.trackingDotTransform.forward;
+                    }
+                    else if (SP.alignType != ModuleDeployableSolarPanel.PanelAlignType.X)
+                    {
+                        direction = SP.alignType != ModuleDeployableSolarPanel.PanelAlignType.Y
+                            ? part.partTransform.forward
+                            : part.partTransform.up;
+                    }
+                    else
+                    {
+                        direction = part.partTransform.right;
+                    }
+
+                    sunAoa = (1f - Mathf.Abs(Vector3.Dot(direction, trackDir))) * 0.318309873f;
+                }
+
+                // Calculate distance multiplier
+                Double distMult;
+                if (!SP.useCurve)
+                {
+                    if (!KopernicusStar.SolarFlux.ContainsKey(star.name))
+                    {
+                        continue;
+                    }
+
+                    distMult = (Single)(KopernicusStar.SolarFlux[star.name] / StockLuminosity);
+                }
+                else
+                {
+                    distMult =
+                     SP.powerCurve.Evaluate((star.sun.transform.position - SP.panelRotationTransform.position).magnitude);
+                }
+
+                // Calculate flow rate
+                Double panelFlowRate = sunAoa * SP._efficMult * distMult;
+                if (part.submergedPortion > 0)
+                {
+                    Double altitudeAtPos =
+                        -FlightGlobals.getAltitudeAtPos
+                        (
+                            (Vector3d)(((Transform)typeof(ModuleDeployableSolarPanel).GetFields(BindingFlags.Instance | BindingFlags.NonPublic).FirstOrDefault(f => f.Name == "secondaryTransform").GetValue(SP)).position),
+                            vessel.mainBody
+                        );
+                    altitudeAtPos = (altitudeAtPos * 3 + part.maxDepth) * 0.25;
+                    if (altitudeAtPos < 0.5)
+                    {
+                        altitudeAtPos = 0.5;
+                    }
+
+                    Double num = 1 / (1 + altitudeAtPos * part.vessel.mainBody.oceanDensity);
+                    if (part.submergedPortion >= 1)
+                    {
+                        panelFlowRate *= num;
+                    }
+                    else
+                    {
+                        panelFlowRate *= UtilMath.LerpUnclamped(1, num, part.submergedPortion);
+                    }
+
+                    SP.status += ", " + SP_status_Underwater;//Underwater
+                }
+
+                SP.sunAOA += sunAoa;
+                Double energy = distMult * SP._efficMult;
+                if (energy > maxEnergy)
+                {
+                    maxEnergy = energy;
+                    maxStar = star;
+                }
+
+                // Apply the flow rate
+                SP._flowRate += panelFlowRate;
+            }
+
+            // Sun AOA
+            SP.sunAOA /= _relativeSunAoa ? stars : 1;
+            SP._distMult = Math.Abs(SP._flowRate) > 0.01 ? SP._flowRate / SP._efficMult / SP.sunAOA : 0;
+
+            // We got the best star to use
+            if (maxStar != null && maxStar.sun != SP.trackingBody)
+            {
+                if (!_manualTracking)
+                {
+                    SP.trackingBody = maxStar.sun;
+                    SP.GetTrackingBodyTransforms();
+                }
+            }
+
+            // Use the flow rate
+            SP.flowRate = (Single)(SP.resHandler.UpdateModuleResourceOutputs(SP._flowRate) * SP.flowMult);
+        }
+
+        public void EarlyLateUpdate()
+        {
+            for (Int32 n = SPs.Length; n > 0; n--)
+            {
+                ModuleDeployableSolarPanel SP = SPs[n - 1];
 
                 if (SP?.deployState == ModuleDeployablePart.DeployState.EXTENDED)
                 {
@@ -203,12 +250,12 @@ namespace Kopernicus.Components
                         trackingBodyName = Localizer.Format("#Kopernicus_UI_AutoTrackingBodyName", trackingBodyName);
 
                     // Update the guiName for SwitchAOAMode
-                    Events["SwitchAoaMode"].guiName = _relativeSunAoa ? button_AbsoluteExposure : button_RelativeExposure;
+                    Events["SwitchAoaMode"].guiName = _relativeSunAoa ? button_AbsoluteExposure : button_RelativeExposure;//Use absolute exposure//Use relative exposure
                 }
             }
         }
 
-        [KSPEvent(active = true, guiActive = false, guiName = "#Kopernicus_UI_SelectBody")]
+        [KSPEvent(active = true, guiActive = false, guiName = "#Kopernicus_UI_SelectBody")]//Select Tracking Body
         public void ManualTracking()
         {
             // Assemble the buttons
@@ -221,7 +268,16 @@ namespace Kopernicus.Components
                 options[i + 1] = new DialogGUIButton
                 (
                     body.bodyDisplayName.Replace("^N", ""),
-                    () => SetTrackingBody(body),
+                    () =>
+                    {
+                        for (int n = SPs?.Length ?? 0; n > 0; n--)
+                        {
+                            ModuleDeployableSolarPanel SP = SPs[n - 1];
+                            _manualTracking = true;
+                            SP.trackingBody = body;
+                            SP.GetTrackingBodyTransforms();
+                        }
+                    },
                     true
                 );
             }
@@ -234,18 +290,7 @@ namespace Kopernicus.Components
                 options), false, UISkinManager.GetSkin("MainMenuSkin"));
         }
 
-        public void SetTrackingBody(CelestialBody sun)
-        {
-            for (int n = 0; n < SPs.Length; n++)
-            {
-                ModuleDeployableSolarPanel SP = SPs[n];
-                _manualTracking = true;
-                SP.trackingBody = sun;
-                SP.GetTrackingBodyTransforms();
-            }
-        }
-
-        [KSPEvent(active = true, guiActive = true, guiName = "#Kopernicus_UI_RelativeExposure")]
+        [KSPEvent(active = true, guiActive = true, guiName = "#Kopernicus_UI_RelativeExposure")]//Use relative exposure
         public void SwitchAoaMode()
         {
             _relativeSunAoa = !_relativeSunAoa;
@@ -256,6 +301,7 @@ namespace Kopernicus.Components
             if (HighLogic.LoadedSceneIsFlight)
             {
                 TimingManager.LateUpdateAdd(TimingManager.TimingStage.Early, EarlyLateUpdate);
+                TimingManager.FixedUpdateAdd(TimingManager.TimingStage.Late, LatePostCalculateTracking);
 
                 SPs = GetComponents<ModuleDeployableSolarPanel>();
 
@@ -264,26 +310,15 @@ namespace Kopernicus.Components
                     Fields["trackingBodyName"].guiActive = true;
                     Events["ManualTracking"].guiActive = true;
                 }
-
-                if (_manualTracking)
-                {
-                    CelestialBody trackingBody = FlightGlobals.Bodies.FirstOrDefault(b => b.bodyDisplayName.Replace("^N", "") == trackingBodyName);
-
-                    if (trackingBody != null)
-                    {
-                        SetTrackingBody(trackingBody);
-                    }
-                    else
-                    {
-                        _manualTracking = false;
-                    }
-                }
             }
+
+            base.OnStart(state);
         }
 
         public void OnDestroy()
         {
             TimingManager.LateUpdateRemove(TimingManager.TimingStage.Early, EarlyLateUpdate);
+            TimingManager.FixedUpdateRemove(TimingManager.TimingStage.Late, LatePostCalculateTracking);
         }
     }
 }
